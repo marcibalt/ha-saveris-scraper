@@ -119,39 +119,43 @@ def open_browser(headless: bool = True) -> webdriver.Chrome:
         opts.add_argument("--headless=new")
         opts.add_argument("--disable-gpu")
 
-    # Container stability flags
+    # Core container flags
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--disable-software-rasterizer")
-    opts.add_argument("--disable-extensions")
+
+    # Reduce crashiness on Alpine/container
+    opts.add_argument("--disable-features=NetworkService,NetworkServiceInProcess")
     opts.add_argument("--disable-background-networking")
+    opts.add_argument("--disable-renderer-backgrounding")
+    opts.add_argument("--disable-background-timer-throttling")
+    opts.add_argument("--disable-breakpad")
+    opts.add_argument("--disable-client-side-phishing-detection")
     opts.add_argument("--disable-default-apps")
+    opts.add_argument("--disable-hang-monitor")
+    opts.add_argument("--disable-popup-blocking")
+    opts.add_argument("--disable-prompt-on-repost")
     opts.add_argument("--disable-sync")
     opts.add_argument("--metrics-recording-only")
-    opts.add_argument("--mute-audio")
-    opts.add_argument("--window-size=1400,1000")
+    opts.add_argument("--no-first-run")
+    opts.add_argument("--no-default-browser-check")
 
-    # IMPORTANT: unique user-data-dir per run to avoid deadlocks
+    # Some Alpine builds behave better with this
+    opts.add_argument("--single-process")
+
+    # Avoid profile lock / corruption between runs
     profile_dir = f"/tmp/chrome-profile-{int(time.time()*1000)}"
     opts.add_argument(f"--user-data-dir={profile_dir}")
 
-    # Tell chromedriver to be a bit more patient starting chrome
+    opts.add_argument("--window-size=1400,1000")
+
+    # ChromeDriver verbose logging already helped — keep it
     service = ChromeService(
         executable_path=CHROMEDRIVER_BIN,
         service_args=["--verbose", "--log-path=/tmp/chromedriver.log"]
     )
 
-    # Start driver (optional; webdriver.Chrome can start it, but explicit start helps debugging)
-    service.start()
-
-    try:
-        return webdriver.Chrome(service=service, options=opts)
-    except Exception:
-        try:
-            service.stop()
-        except Exception:
-            pass
-        raise
+    # Let Selenium manage service lifecycle; DON'T call service.start() manually
+    return webdriver.Chrome(service=service, options=opts)
 
 
 
@@ -302,10 +306,18 @@ def scrape_once() -> Dict:
 def background_loop():
     global _latest
     while True:
-        data = scrape_once()
+        try:
+            data = scrape_once()
+        except Exception as e:
+            data = {"status": "error", "error": f"background exception: {e}", "count": 0, "measuring_points": []}
+
         with _latest_lock:
             _latest = data
+
+        print(f"[saveris] status={data.get('status')} count={data.get('count')} error={data.get('error','') if data.get('status')=='error' else ''}")
+
         time.sleep(max(30, SCAN_INTERVAL))
+
 
 
 # ----------------- http api -----------------

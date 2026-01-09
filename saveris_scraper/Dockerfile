@@ -3,15 +3,16 @@ FROM python:3.11-alpine
 RUN apk add --no-cache \
     chromium \
     chromium-chromedriver \
+    ca-certificates \
     nss \
     freetype \
     harfbuzz \
     ttf-freefont \
-    ca-certificates \
     udev \
     dbus \
     mesa-gl \
-    libstdc++
+    libstdc++ \
+    libgcc
 
 RUN pip install --no-cache-dir selenium flask
 
