@@ -6,7 +6,7 @@ import threading
 from typing import Optional, Dict, List
 
 from flask import Flask, jsonify# type: ignore
-
+from pathlib import Path
 from selenium import webdriver # type: ignore
 from selenium.webdriver.common.by import By# type: ignore
 from selenium.webdriver.chrome.service import Service as ChromeService# type: ignore
@@ -22,10 +22,25 @@ MEASURING_POINTS_URL = "https://www.saveris.net/MeasuringPts"
 CHROME_BIN = os.getenv("CHROME_BIN", "/usr/bin/chromium-browser")
 CHROMEDRIVER_BIN = os.getenv("CHROMEDRIVER_BIN", "/usr/bin/chromedriver")
 
-# Add-on options are exposed as env vars by HA Supervisor
-EMAIL = os.getenv("EMAIL", "")
-PASSWORD = os.getenv("PASSWORD", "")
-SCAN_INTERVAL = int(os.getenv("SCAN_INTERVAL_SECONDS", "300"))
+OPTIONS_PATH = Path("/data/options.json")
+
+def load_options():
+    """
+    Home Assistant add-on options live in /data/options.json
+    """
+    if OPTIONS_PATH.exists():
+        try:
+            data = json.loads(OPTIONS_PATH.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+_opts = load_options()
+EMAIL = str(_opts.get("email", "") or "").strip()
+PASSWORD = str(_opts.get("password", "") or "").strip()
+SCAN_INTERVAL = int(_opts.get("scan_interval_seconds", 300) or 300)
+
 
 app = Flask(__name__)
 
