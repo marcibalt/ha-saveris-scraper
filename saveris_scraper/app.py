@@ -122,7 +122,7 @@ def open_browser(headless: bool = True) -> webdriver.Chrome:
     # Core container flags
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
-
+    
  # --- Fix "chrome not reachable" caused by Vulkan/ANGLE/EGL init failures in containers ---
     opts.add_argument("--disable-vulkan")
     opts.add_argument("--disable-features=Vulkan")
@@ -145,8 +145,6 @@ def open_browser(headless: bool = True) -> webdriver.Chrome:
     opts.add_argument("--metrics-recording-only")
     opts.add_argument("--no-first-run")
     opts.add_argument("--no-default-browser-check")
-    opts.add_argument("--remote-debugging-pipe")
-
 
    
 
