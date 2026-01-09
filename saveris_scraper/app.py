@@ -14,7 +14,9 @@ from selenium.webdriver.chrome.service import Service as ChromeService# type: ig
 from selenium.webdriver.support.ui import WebDriverWait# type: ignore
 from selenium.webdriver.support import expected_conditions as EC# type: ignore
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException# type: ignore
+from selenium.webdriver.remote.client_config import ClientConfig # type: ignore
 from selenium.webdriver.remote.remote_connection import RemoteConnection # type: ignore
+
 
 
 LOGIN_URL = "https://www.saveris.net/users/login"
@@ -109,17 +111,13 @@ def parse_measurements_cell(cell_text: str) -> Dict[str, Optional[float]]:
 # ----------------- selenium -----------------
 
 def open_browser(headless: bool = True) -> webdriver.Chrome:
-    RemoteConnection.set_timeout(300)
-
     opts = webdriver.ChromeOptions()
     opts.binary_location = CHROME_BIN
 
-    # Headless
     if headless:
         opts.add_argument("--headless=new")
         opts.add_argument("--disable-gpu")
 
-    # Container stability flags
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-software-rasterizer")
@@ -130,11 +128,6 @@ def open_browser(headless: bool = True) -> webdriver.Chrome:
     opts.add_argument("--metrics-recording-only")
     opts.add_argument("--mute-audio")
 
-    # Avoid port probing issues; chromedriver handles debugging internally
-    # (remote-debugging-port can cause weirdness in some builds)
-    # opts.add_argument("--remote-debugging-port=9222")
-
-    # IMPORTANT: unique user-data-dir per run to avoid "profile in use" deadlocks
     profile_dir = f"/tmp/chrome-profile-{int(time.time()*1000)}"
     opts.add_argument(f"--user-data-dir={profile_dir}")
 
@@ -142,8 +135,12 @@ def open_browser(headless: bool = True) -> webdriver.Chrome:
 
     service = ChromeService(CHROMEDRIVER_BIN)
 
-    # Give chromedriver more time to start Chrome (prevents handshake timeout)
-    return webdriver.Chrome(service=service, options=opts)
+    # Correct way to increase selenium<->chromedriver HTTP timeout
+    client_config = ClientConfig(timeout=300)
+    executor = RemoteConnection(service.service_url, client_config=client_config)
+
+    return webdriver.Chrome(service=service, options=opts, command_executor=executor)
+
 
 
 
