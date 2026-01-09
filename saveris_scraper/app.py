@@ -3,6 +3,7 @@ import re
 import json
 import time
 import threading
+import subprocess
 from typing import Optional, Dict, List
 
 from flask import Flask, jsonify# type: ignore
@@ -13,6 +14,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService# type: ig
 from selenium.webdriver.support.ui import WebDriverWait# type: ignore
 from selenium.webdriver.support import expected_conditions as EC# type: ignore
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException# type: ignore
+from selenium.webdriver.remote.remote_connection import RemoteConnection # type: ignore
 
 
 LOGIN_URL = "https://www.saveris.net/users/login"
@@ -23,6 +25,18 @@ CHROME_BIN = os.getenv("CHROME_BIN", "/usr/bin/chromium-browser")
 CHROMEDRIVER_BIN = os.getenv("CHROMEDRIVER_BIN", "/usr/bin/chromedriver")
 
 OPTIONS_PATH = Path("/data/options.json")
+
+def log_versions():
+    try:
+        print("Chromium:", subprocess.check_output([CHROME_BIN, "--version"], text=True).strip())
+    except Exception as e:
+        print("Chromium version check failed:", e)
+    try:
+        print("ChromeDriver:", subprocess.check_output([CHROMEDRIVER_BIN, "--version"], text=True).strip())
+    except Exception as e:
+        print("ChromeDriver version check failed:", e)
+
+log_versions()
 
 def load_options():
     """
@@ -95,22 +109,42 @@ def parse_measurements_cell(cell_text: str) -> Dict[str, Optional[float]]:
 # ----------------- selenium -----------------
 
 def open_browser(headless: bool = True) -> webdriver.Chrome:
+    RemoteConnection.set_timeout(300)
+
     opts = webdriver.ChromeOptions()
     opts.binary_location = CHROME_BIN
 
+    # Headless
     if headless:
         opts.add_argument("--headless=new")
         opts.add_argument("--disable-gpu")
 
+    # Container stability flags
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--disable-software-rasterizer")
+    opts.add_argument("--disable-extensions")
+    opts.add_argument("--disable-background-networking")
+    opts.add_argument("--disable-default-apps")
+    opts.add_argument("--disable-sync")
+    opts.add_argument("--metrics-recording-only")
+    opts.add_argument("--mute-audio")
+
+    # Avoid port probing issues; chromedriver handles debugging internally
+    # (remote-debugging-port can cause weirdness in some builds)
+    # opts.add_argument("--remote-debugging-port=9222")
+
+    # IMPORTANT: unique user-data-dir per run to avoid "profile in use" deadlocks
+    profile_dir = f"/tmp/chrome-profile-{int(time.time()*1000)}"
+    opts.add_argument(f"--user-data-dir={profile_dir}")
+
     opts.add_argument("--window-size=1400,1000")
-    opts.add_argument("--remote-debugging-port=9222")
-    opts.add_argument("--disable-features=VizDisplayCompositor")
-    opts.add_argument("--user-data-dir=/tmp/chrome-profile")
 
     service = ChromeService(CHROMEDRIVER_BIN)
+
+    # Give chromedriver more time to start Chrome (prevents handshake timeout)
     return webdriver.Chrome(service=service, options=opts)
+
 
 
 def find_first(driver: webdriver.Chrome, selectors):

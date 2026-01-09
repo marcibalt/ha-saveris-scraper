@@ -6,7 +6,12 @@ RUN apk add --no-cache \
     nss \
     freetype \
     harfbuzz \
-    ttf-freefont
+    ttf-freefont \
+    ca-certificates \
+    udev \
+    dbus \
+    mesa-gl \
+    libstdc++
 
 RUN pip install --no-cache-dir selenium flask
 
