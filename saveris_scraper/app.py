@@ -275,6 +275,39 @@ def health():
 def data():
     with _latest_lock:
         return jsonify(_latest)
+    
+@app.get("/diag")
+def diag():
+    from pathlib import Path
+    import json
+
+    p = Path("/data/options.json")
+    exists = p.exists()
+    raw = ""
+    keys = []
+    email_present = False
+    password_present = False
+
+    if exists:
+        try:
+            raw = p.read_text(encoding="utf-8")
+            data = json.loads(raw)
+            if isinstance(data, dict) and isinstance(data.get("options"), dict):
+                data = data["options"]
+            if isinstance(data, dict):
+                keys = sorted(list(data.keys()))
+                email_present = bool(str(data.get("email", "")).strip())
+                password_present = bool(str(data.get("password", "")).strip())
+        except Exception:
+            pass
+
+    return jsonify({
+        "options_file_exists": exists,
+        "options_keys": keys,
+        "email_present": email_present,
+        "password_present": password_present
+    })
+
 
 
 # ----------------- main -----------------
