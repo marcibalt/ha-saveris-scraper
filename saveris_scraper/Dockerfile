@@ -15,7 +15,7 @@ RUN apk add --no-cache \
     libgcc
 
 RUN pip install --no-cache-dir selenium flask
-
+ENV LIBGL_ALWAYS_SOFTWARE=1
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROMEDRIVER_BIN=/usr/bin/chromedriver
 
