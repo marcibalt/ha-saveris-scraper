@@ -19,6 +19,8 @@ from selenium.webdriver.remote.remote_connection import RemoteConnection # type:
 
 
 
+
+
 LOGIN_URL = "https://www.saveris.net/users/login"
 MEASURING_POINTS_URL = "https://www.saveris.net/MeasuringPts"
 
@@ -135,11 +137,29 @@ def open_browser(headless: bool = True) -> webdriver.Chrome:
 
     service = ChromeService(CHROMEDRIVER_BIN)
 
-    # Correct way to increase selenium<->chromedriver HTTP timeout
-    client_config = ClientConfig(timeout=300)
-    executor = RemoteConnection(service.service_url, client_config=client_config)
+    # Start chromedriver and get the service URL
+    service.start()
+    remote_url = service.service_url  # e.g. http://127.0.0.1:NNNN
 
-    return webdriver.Chrome(service=service, options=opts, command_executor=executor)
+    # Build client config with required remote_server_addr
+    client_config = ClientConfig(remote_server_addr=remote_url, timeout=300)
+
+    executor = RemoteConnection(remote_url, client_config=client_config)
+
+    try:
+        return webdriver.Chrome(
+            service=service,
+            options=opts,
+            command_executor=executor
+        )
+    except Exception:
+        # Ensure chromedriver is stopped if Chrome fails to start
+        try:
+            service.stop()
+        except Exception:
+            pass
+        raise
+
 
 
 
