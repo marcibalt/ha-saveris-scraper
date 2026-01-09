@@ -14,8 +14,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService# type: ig
 from selenium.webdriver.support.ui import WebDriverWait# type: ignore
 from selenium.webdriver.support import expected_conditions as EC# type: ignore
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException# type: ignore
-from selenium.webdriver.remote.client_config import ClientConfig # type: ignore
-from selenium.webdriver.remote.remote_connection import RemoteConnection # type: ignore
+
 
 
 
@@ -120,6 +119,7 @@ def open_browser(headless: bool = True) -> webdriver.Chrome:
         opts.add_argument("--headless=new")
         opts.add_argument("--disable-gpu")
 
+    # Container stability flags
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-software-rasterizer")
@@ -129,31 +129,24 @@ def open_browser(headless: bool = True) -> webdriver.Chrome:
     opts.add_argument("--disable-sync")
     opts.add_argument("--metrics-recording-only")
     opts.add_argument("--mute-audio")
+    opts.add_argument("--window-size=1400,1000")
 
+    # IMPORTANT: unique user-data-dir per run to avoid deadlocks
     profile_dir = f"/tmp/chrome-profile-{int(time.time()*1000)}"
     opts.add_argument(f"--user-data-dir={profile_dir}")
 
-    opts.add_argument("--window-size=1400,1000")
+    # Tell chromedriver to be a bit more patient starting chrome
+    service = ChromeService(
+        executable_path=CHROMEDRIVER_BIN,
+        service_args=["--verbose", "--log-path=/tmp/chromedriver.log"]
+    )
 
-    service = ChromeService(CHROMEDRIVER_BIN)
-
-    # Start chromedriver and get the service URL
+    # Start driver (optional; webdriver.Chrome can start it, but explicit start helps debugging)
     service.start()
-    remote_url = service.service_url  # e.g. http://127.0.0.1:NNNN
-
-    # Build client config with required remote_server_addr
-    client_config = ClientConfig(remote_server_addr=remote_url, timeout=300)
-
-    executor = RemoteConnection(remote_url, client_config=client_config)
 
     try:
-        return webdriver.Chrome(
-            service=service,
-            options=opts,
-            command_executor=executor
-        )
+        return webdriver.Chrome(service=service, options=opts)
     except Exception:
-        # Ensure chromedriver is stopped if Chrome fails to start
         try:
             service.stop()
         except Exception:
@@ -358,6 +351,15 @@ def diag():
         "email_present": email_present,
         "password_present": password_present
     })
+
+@app.get("/chromedriver_log")
+def chromedriver_log():
+    p = Path("/tmp/chromedriver.log")
+    if not p.exists():
+        return jsonify({"exists": False})
+    # return last 200 lines max
+    lines = p.read_text(encoding="utf-8", errors="ignore").splitlines()[-200:]
+    return jsonify({"exists": True, "tail": lines})
 
 
 

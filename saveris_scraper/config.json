@@ -1,6 +1,6 @@
 {
     "name": "Saveris Scraper",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "slug": "saveris_scraper",
     "description": "Scrape saveris.net measuring points and expose them as JSON",
     "arch": ["aarch64", "amd64", "armv7", "armhf", "i386"],
